@@ -1,0 +1,6 @@
+[2025-10-23 14:27:06] test_motsp_n20.py(84) : DEBUG_MODE: False
+[2025-10-23 14:27:06] test_motsp_n20.py(85) : USE_CUDA: True, CUDA_DEVICE_NUM: 5
+[2025-10-23 14:27:06] test_motsp_n20.py(86) : env_params{'problem_size': 20, 'pomo_size': 20}
+[2025-10-23 14:27:06] test_motsp_n20.py(86) : model_params{'embedding_dim': 128, 'sqrt_embedding_dim': 11.313708498984761, 'encoder_layer_num': 6, 'qkv_dim': 16, 'head_num': 8, 'logit_clipping': 10, 'ff_hidden_dim': 512, 'eval_type': 'argmax', 'hyper_hidden_dim': 256}
+[2025-10-23 14:27:06] test_motsp_n20.py(86) : tester_params{'use_cuda': True, 'cuda_device_num': 5, 'dec_method': 'WS', 'model_load': {'path': './result/train__tsp_n20', 'info': "MOTSP20 Author's code (Retrain WS Test WS)", 'epoch': 200}, 'test_episodes': 200, 'test_batch_size': 200, 'augmentation_enable': True, 'aug_factor': 1, 'aug_batch_size': 200}
+[2025-10-23 14:27:06] test_motsp_n20.py(86) : logger_params{'log_file': {'desc': 'test__tsp_n20', 'filename': 'run_log', 'filepath': './result/20251023_142706_test__tsp_n20'}}
