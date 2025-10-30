@@ -10,7 +10,7 @@ import torch  # PyTorch深度学习框架
 # 导入问题定义模块中的函数
 # get_random_problems: 生成随机TSP问题
 # augment_xy_data_by_64_fold_2obj: 数据增强函数，将数据扩充64倍
-from MOTSP.MOTSProblemDef import get_random_problems, augment_xy_data_by_64_fold_2obj
+from MOTSP.POMO.MOTSProblemDef import get_random_problems, augment_xy_data_by_64_fold_2obj
 
 
 ##############################################

@@ -9,7 +9,7 @@ from joblib import dump  # 使用joblib替代pickle
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # 导入必要的模块
-from MOTSProblemDef import get_random_problems
+from MOTSP.POMO.MOTSProblemDef import get_random_problems
 from MOTSPModel import TSPModel
 
 def generate_prototype_preferences(N=101, M=2):
