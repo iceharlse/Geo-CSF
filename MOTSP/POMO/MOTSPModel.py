@@ -190,7 +190,7 @@ class TSP_Encoder(nn.Module):
             data: 输入数据（城市坐标）
                 shape: (batch, problem, 4)
             pref: 偏好向量
-                shape: (2)
+                shape: (batch, 2) 或 (2)
                 
         Returns:
             out: 编码后的节点表示
@@ -198,10 +198,18 @@ class TSP_Encoder(nn.Module):
         """
         # data.shape: (batch, problem, 4)
 
-        # 将偏好向量嵌入并扩展到批次维度
-        embedded_pref = self.embedding_pref(pref)[None, None, :].repeat(data.shape[0], 1, 1) 
-        #这里我一开始不懂，后来知道了他是想对所有不同的实例问题用相同的偏好向量进行训练。所以pref传进来的shape是(2)
-        # shape: (batch, 1, embedding)
+        # 处理 pref 的形状，确保它与批次大小兼容
+        if pref.dim() == 1:
+            # 如果 pref 是 (2,) 形状，则扩展为 (1, 1, embedding)
+            embedded_pref = self.embedding_pref(pref)[None, None, :]  # shape: (1, 1, embedding)
+            # 然后扩展到批次大小
+            embedded_pref = embedded_pref.repeat(data.shape[0], 1, 1)  # shape: (batch, 1, embedding)
+        elif pref.dim() == 2:
+            # 如果 pref 是 (batch, 2) 形状，则直接处理
+            embedded_pref = self.embedding_pref(pref)  # shape: (batch, embedding)
+            embedded_pref = embedded_pref.unsqueeze(1)  # shape: (batch, 1, embedding)
+        else:
+            raise ValueError(f"pref 的形状不正确: {pref.shape}")
 
         # 嵌入城市坐标
         embedded_input = self.embedding(data)

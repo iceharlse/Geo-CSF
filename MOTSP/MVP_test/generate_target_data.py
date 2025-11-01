@@ -9,8 +9,8 @@ from joblib import dump  # 使用joblib替代pickle
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # 导入必要的模块
-from MOTSP.POMO.MOTSProblemDef import get_random_problems
-from MOTSPModel import TSPModel
+from MOTSP.MOTSProblemDef import get_random_problems
+from MOTSP.POMO.MOTSPModel import TSPModel
 
 def generate_prototype_preferences(N=101, M=2):
     """
@@ -183,7 +183,7 @@ def main():
     }
     
     # 使用绝对路径设置预训练模型路径
-    model_path = os.path.join(os.path.dirname(__file__), "result", "train__tsp_n20", "checkpoint_motsp-200.pt")
+    model_path = os.path.join(os.path.dirname(__file__), "..", "POMO", "result", "train__tsp_n20", "checkpoint_motsp-200.pt")
     
     # 检查模型文件是否存在
     if not os.path.exists(model_path):
