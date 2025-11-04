@@ -35,7 +35,7 @@ class MOCOEnv:
     奖励 R: 每个实例对应的 Hypervolume。
     """
 
-    def __init__(self, weca_model_params, weca_env_params, weca_checkpoint_path, batch_size=1, device='cpu', ref_point=None):
+    def __init__(self, weca_model_params, weca_env_params, weca_checkpoint_path, batch_size=1, device='cuda', ref_point=None):
         """
         初始化MOCO环境
 
@@ -51,6 +51,24 @@ class MOCOEnv:
         self.weca_model_params = weca_model_params
         self.weca_env_params = weca_env_params
         self.device = torch.device(device)
+        
+        # 它会影响所有后续的张量创建
+        # 尤其是 self.internal_env 内部创建的张量
+        if self.device.type == 'cuda':
+            # 设置默认设备为 GPU
+            torch.set_default_device(self.device) 
+            # 设置默认浮点类型（通常是 float32）
+            torch.set_default_dtype(torch.float32) 
+            print(f"MOCOEnv: 已设置默认设备为 {self.device}，默认类型为 torch.float32")
+        else:
+            # 设置默认设备为 CPU
+            torch.set_default_device('cpu') 
+            # 设置默认浮点类型
+            torch.set_default_dtype(torch.float32) 
+            print("MOCOEnv: 已设置默认设备为 cpu，默认类型为 torch.float32")
+        # --- 新增结束 ---
+        
+                
         self.problem_size = weca_env_params['problem_size']
         self.weca_pomo_size = weca_env_params['pomo_size'] # WE-CA 内部的 POMO size
         self.batch_size = batch_size # PPO希望处理的批次大小
@@ -60,7 +78,6 @@ class MOCOEnv:
         self.solver_model = MOTSPModel(**weca_model_params).to(self.device)
         self.solver_model.eval()
         try:
-            # 修复FutureWarning: 设置weights_only=True以提高安全性
             checkpoint = torch.load(weca_checkpoint_path, map_location=self.device)
             self.solver_model.load_state_dict(checkpoint['model_state_dict'])
             print(f"成功加载 WE-CA 检查点: {weca_checkpoint_path}")
@@ -208,6 +225,11 @@ class MOCOEnv:
         Returns:
             tuple: (p_sols, p_sols_num)
         """
+        # 临时将默认类型重置为 CPU
+        # 这样 Pareto_sols 内部创建的张量（如 BATCH_IDX）才会在 CPU 上
+        saved_device = torch.get_default_device() # 保存当前设备 (GPU)
+        torch.set_default_device('cpu') # 临时切换到 CPU
+        
         B = solutions.shape[0]  # 批次大小
         
         # --- 计算帕累托解 ---
@@ -219,6 +241,9 @@ class MOCOEnv:
         
         # 获取帕累托解集和数量
         p_sols, p_sols_num, _ = nd_sort.show_PE()
+        
+        # 恢复全局默认类型（GPU）
+        torch.set_default_device(saved_device) # 恢复 GPU
         
         return p_sols, p_sols_num
 
@@ -233,6 +258,10 @@ class MOCOEnv:
         Returns:
             np.array: HV 奖励 (shape: [B,])
         """
+        # 临时将默认类型重置为 CPU
+        saved_device = torch.get_default_device() # 保存当前设备 (GPU)
+        torch.set_default_device('cpu') # 临时切换到 CPU
+        
         # --- 计算 HV 奖励 ---
         # 使用帕累托解来计算 HV
         hv_rewards_batch = cal_ps_hv(pf=p_sols, 
@@ -242,6 +271,9 @@ class MOCOEnv:
     
         # cal_ps_hv 返回的 shape 是 (B, 1)，我们需要 (B,)
         hv_rewards = hv_rewards_batch.squeeze(-1)
+        
+        # 恢复全局默认类型（GPU）
+        torch.set_default_device(saved_device) # 恢复 GPU
         
         return hv_rewards
 
@@ -291,10 +323,13 @@ class MOCOEnv:
             
             # 存储这批结果
             solutions[:, i, :] = best_solutions
-    
-        # 计算帕累托解集
-        p_sols, p_sols_num = self._compute_pareto_solutions(solutions, N, M)
+
+        # 在计算 HV 之前，将解移回 CPU
+        solutions_cpu = solutions.cpu()
         
+        # 计算帕累托解集
+        p_sols, p_sols_num = self._compute_pareto_solutions(solutions_cpu, N, M)
+
         # 计算 HV 奖励
         hv_rewards = self._compute_hv_rewards(p_sols, p_sols_num)
     
@@ -305,7 +340,7 @@ class MOCOEnv:
         next_states = State(h_graph=self.h_graphs)  # shape: (B, embedding_dim)
     
         # infos 列表，每个元素是一个字典
-        infos = [{'objectives': solutions[b].cpu().numpy()} for b in range(B)]
+        infos = [{'objectives': solutions_cpu[b].numpy()} for b in range(B)]
     
         return next_states, hv_rewards, dones, infos
 
