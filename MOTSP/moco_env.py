@@ -35,19 +35,27 @@ class MOCOEnv:
     奖励 R: 每个实例对应的 Hypervolume。
     """
 
-    def __init__(self, weca_model_params, weca_env_params, weca_checkpoint_path, batch_size=1, device='cuda', ref_point=None):
+    def __init__(self, **moco_env_params):
         """
         初始化MOCO环境
 
         Args:
-            weca_model_params (dict): WE-CA 模型的参数。
-            weca_env_params (dict): WE-CA 环境的参数 (主要是 problem_size, pomo_size)。
-            weca_checkpoint_path (str): 冻结的 WE-CA 模型权重路径。
-            batch_size (int): 环境期望处理的批次大小 (用于内部环境初始化)。
-            device (str): 计算设备 ('cuda' or 'cpu')。
-            ref_point (list or np.array): HV 计算的**固定**参考点 (例如 [20.0, 20.0])。
-                                         **必须**提供以保证奖励信号稳定。
+            moco_env_params (dict): MOCO环境的参数字典，包含以下键：
+                - weca_model_params (dict): WE-CA 模型的参数。
+                - weca_env_params (dict): WE-CA 环境的参数 (主要是 problem_size, pomo_size)。
+                - weca_checkpoint_path (str): 冻结的 WE-CA 模型权重路径。
+                - batch_size (int): 环境期望处理的批次大小 (用于内部环境初始化)。
+                - device (str): 计算设备 ('cuda' or 'cpu')。
+                - ref_point (list or np.array): HV 计算的**固定**参考点 (例如 [20.0, 20.0])。
         """
+        # 从参数字典中提取各个参数
+        weca_model_params = moco_env_params['weca_model_params']
+        weca_env_params = moco_env_params['weca_env_params']
+        weca_checkpoint_path = moco_env_params['weca_checkpoint_path']
+        batch_size = moco_env_params.get('batch_size', 1)
+        device = moco_env_params.get('device', 'cuda')
+        ref_point = moco_env_params.get('ref_point', None)
+        
         self.weca_model_params = weca_model_params
         self.weca_env_params = weca_env_params
         self.device = torch.device(device)
@@ -380,8 +388,18 @@ if __name__ == '__main__':
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     ref_point = [20.0, 20.0]
 
+    # 构建moco_env_params字典
+    moco_env_params = {
+        'weca_model_params': model_params,
+        'weca_env_params': env_params,
+        'weca_checkpoint_path': checkpoint_path,
+        'batch_size': B,
+        'device': device,
+        'ref_point': ref_point
+    }
+
     # 初始化环境时传入 PPO 的批次大小
-    env = MOCOEnv(model_params, env_params, checkpoint_path, batch_size=B, device=device, ref_point=ref_point)
+    env = MOCOEnv(**moco_env_params)
 
     # --- 测试 reset ---
     initial_state = env.reset() # 随机生成 B 个问题
