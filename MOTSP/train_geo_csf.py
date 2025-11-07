@@ -54,7 +54,7 @@ actor_params = {
         'activation': 'relu'
     },
     'csf_params': {
-        'input_dim': 2, # M
+        'input_dim': 2, 
         'hidden_dim': 128,
         'condition_dim': 128, 
         'geometric_dim': 16,
@@ -63,19 +63,21 @@ actor_params = {
         'num_heads': 8,
         'ff_hidden_dim': 512
     },
+    'N': 10,
     'M': 2
 }
 
 # --- Critic 参数---
 critic_params = {
     'condition_dim': 128,
+    'N' : 10,
     'M': 2,
     'hidden_dim': 128,
 }
 
 # --- 优化器参数 ---
 optimizer_params = {
-    'lr_actor': 1e-4,
+    'lr_actor': 1e-5,
     'lr_critic': 1e-4
 }
 
@@ -84,22 +86,15 @@ trainer_params = {
     'use_cuda': USE_CUDA,
     'cuda_device_num': CUDA_DEVICE_NUM,
     'device': torch.device('cuda:0' if USE_CUDA else 'cpu'),
-    
-    # 课程学习
-    'curriculum_stages': [
-        (10, 1000),   # 阶段 1: N=10, 跑 1000 个 episodes
-        (20, 2000),   # 阶段 2: N=20, 跑 2000 个 episodes
-        (50, 3000),   # 阶段 3: N=50, 跑 3000 个 episodes
-        (101, 5000)   # 阶段 4: N=101, 跑 5000 个 episodes
-    ],
+    'num_episodes' : 5000,
     
     # Actor-Critic 参数
     'batch_size': 32,
-    'buffer_capacity': 100000,
+    'buffer_capacity': 50000,
     'gamma': 0.99,
     'tau': 0.005,
     'noise_level': 0.1,
-    'train_steps_per_episode': 1, # 每个 episode 训练几次
+    'train_steps_per_episode': 10, # 每个 episode 训练几次
     'start_train_after_episodes': 100, # 收集多少数据后才开始训练
     
     # 日志和保存
@@ -170,11 +165,6 @@ def main():
 def _set_debug_mode():
     # 声明使用全局变量
     global trainer_params
-    # 修改课程学习阶段以减少训练时间
-    trainer_params['curriculum_stages'] = [
-        (10, 10),   # 阶段 1: N=10, 跑 10 个 episodes
-        (20, 10),   # 阶段 2: N=20, 跑 10 个 episodes
-    ]
     # 减小缓冲区容量以便快速调试
     trainer_params['buffer_capacity'] = 1000
     # 减少开始训练前需要收集的数据量

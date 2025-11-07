@@ -7,7 +7,7 @@ class CriticNetwork(nn.Module):
     Critic网络，用于评估(state, action)对的Q值
     """
     
-    def __init__(self, condition_dim, M, hidden_dim=128):
+    def __init__(self, condition_dim, N, M, hidden_dim=128):
         """
         初始化CriticNetwork
         
@@ -20,6 +20,7 @@ class CriticNetwork(nn.Module):
         super(CriticNetwork, self).__init__()
         
         self.condition_dim = condition_dim
+        self.N = N
         self.M = M
         self.hidden_dim = hidden_dim
         
@@ -31,7 +32,7 @@ class CriticNetwork(nn.Module):
         
         # 动作处理网络
         self.action_processor = nn.Sequential(
-            nn.Linear(M, hidden_dim),
+            nn.Linear(self.N*self.M, hidden_dim),
             nn.ReLU()
         )
         
@@ -56,14 +57,12 @@ class CriticNetwork(nn.Module):
         # 处理状态 h_graph
         processed_state = self.state_processor(h_graph)  # [B, hidden_dim]
         
-        # 逐元素处理动作
-        processed_action = self.action_processor(action)  # [B, N, hidden_dim]
-        
-        # 使用 Mean Pooling 压扁 N 维度
-        pooled_action = torch.mean(processed_action, dim=1) # [B, hidden_dim]
+        # 动作
+        flattened_action = action.view(action.size(0), -1) # [B, N*M]
+        processed_action = self.action_processor(flattened_action) # [B, 128]
         
         # 拼接处理后的状态和动作
-        combined = torch.cat([processed_state, pooled_action], dim=1)  # [B, hidden_dim*2]
+        combined = torch.cat([processed_state, processed_action], dim=1)  # [B, hidden_dim*2]
         
         # 计算最终的Q值
         q_value = self.combined_processor(combined)  # [B, 1]

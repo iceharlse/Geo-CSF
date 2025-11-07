@@ -61,7 +61,7 @@ class GeoCSFTrainer:
         self.actor_optimizer = None
         self.critic_optimizer = None
         self.buffer = None
-        
+        self.train_step_counter = 0
         # --- 工具 ---
         self.time_estimator = TimeEstimator()
         
@@ -72,16 +72,16 @@ class GeoCSFTrainer:
         self.noise_level = self.trainer_params['noise_level']
 
 
-    def _initialize_stage(self, N, last_checkpoint_path=None):
+    def _initialize_stage(self, last_checkpoint_path=None):
         """
-        N (int): 当前阶段的集合大小
         last_checkpoint_path (str or None): 上一阶段的模型路径
-        根据课程学习阶段 N，初始化或重新初始化模型
         """
 
-        # 1. 根据 N 初始化 Actor, Critic
-        self.actor = MocoPolicyNetwork(N=N, **self.actor_params).to(self.device)
-        self.critic = CriticNetwork(**self.critic_params).to(self.device)  # 移除 N=N 参数
+        # 1. 初始化 Actor, Critic
+        self.actor = MocoPolicyNetwork(**self.actor_params).to(self.device)
+        self.critic = CriticNetwork(**self.critic_params).to(self.device)
+        
+        self.train_step_counter = 0
         
         # 2.热启动
         if last_checkpoint_path is not None:
@@ -104,7 +104,7 @@ class GeoCSFTrainer:
 
     def run(self):
         """
-        运行训练过程 (现在是课程学习)
+        运行训练过程
         """
         # --- 中间层 ---            
         last_checkpoint_path = None # 从头开始
@@ -112,72 +112,94 @@ class GeoCSFTrainer:
         # (检查是否从保存的检查点恢复)
         model_load = self.trainer_params['model_load']
         if model_load['enable']:
-            last_checkpoint_path = f"{model_load['path']}/model_stage_N{model_load['stage_to_load']}.pth"
+            last_checkpoint_path = f"{model_load['path']}/model_N{N}.pth"
             self.logger.info(f"从 {last_checkpoint_path} 恢复训练")
             
-        # --- 外层课程循环 ---
-        for stage, (N, num_episodes) in enumerate(self.trainer_params['curriculum_stages']):
-            
-            # (如果 model_load['enable'], 跳过已经完成的阶段)
-            if model_load['enable'] and stage < model_load['stage_to_load']:
-                self.logger.info(f"跳过已完成的阶段 {stage+1} (N={N})")
-                continue
-            
-            self.logger.info(f"--- 开始课程学习阶段 {stage+1}: N = {N}, Episodes = {num_episodes} ---")
-            
-            # 1. 根据 N 初始化组件
-            self._initialize_stage(N, last_checkpoint_path)
-            
-            # 2. 执行该阶段的训练
-            self.time_estimator.reset(count=1)
-            pbar = tqdm(range(1, num_episodes + 1), desc=f"训练进度 (N={N})")
-            
-            # 初始化用于记录的变量
-            recent_rewards = []
-            recent_actor_losses = []
-            recent_critic_losses = []
-            
-            for episode in pbar:
-                # A. 收集数据
-                step_reward = self._collect_one_step()
-                recent_rewards.append(step_reward)
-                
-                # B. 训练 (如果 buffer 准备好了)
-                start_steps = self.trainer_params.get('start_train_after_episodes', 1) * self.batch_size
-                
-                if self.buffer.is_ready(self.batch_size) and len(self.buffer) >= start_steps:
-                    actor_loss, critic_loss = self._train_one_batch()
-                    recent_actor_losses.append(actor_loss) 
-                    recent_critic_losses.append(critic_loss)
-                else:
-                    # 如果buffer还没准备好，添加占位符
-                    recent_actor_losses.append(0.0)
-                    recent_critic_losses.append(0.0)
-                
-                # 日志记录
-                if episode % 100 == 0 or episode == num_episodes:
-                    # 计算最近100个episode的平均值
-                    if len(recent_rewards) > 0:
-                        avg_reward = np.mean(recent_rewards)
-                        avg_actor_loss = np.mean(recent_actor_losses)
-                        avg_critic_loss = np.mean(recent_critic_losses)
-                        
-                        # 更新进度条描述
-                        pbar.set_description(f"训练进度 (N={N}, R={avg_reward:.4f}, A_L={avg_actor_loss:.4f}, C_L={avg_critic_loss:.4f})")
-                        
-                        # 记录到日志
-                        self.logger.info(f"Episode {episode}: 平均奖励={avg_reward:.4f}, "
-                                       f"Actor损失={avg_actor_loss:.4f}, Critic损失={avg_critic_loss:.4f}")
-                    
-                    # 清空记录列表
-                    recent_rewards.clear()
-                    recent_actor_losses.clear()
-                    recent_critic_losses.clear()
-                
-            # 3. 保存阶段性检查点
-            last_checkpoint_path = self._save_checkpoint(stage, N)
+        # 获取训练参数
+        num_episodes = self.trainer_params.get('num_episodes', 1000)
+        N = self.trainer_params.get('N', 10)  # 默认N=10
         
-        self.logger.info(" *** 所有课程学习阶段完成！ *** ")
+        self.logger.info(f"--- 开始单阶段训练: N = {N}, Episodes = {num_episodes} ---")
+        
+        # 1. 初始化组件
+        self._initialize_stage(last_checkpoint_path)
+        
+        # 初始化最佳奖励跟踪变量
+        self.best_avg_reward = -float('inf')
+        
+        # 保存初始学习率
+        initial_actor_lr = self.optimizer_params['lr_actor']
+        initial_critic_lr = self.optimizer_params['lr_critic']
+        
+        # 2. 执行训练
+        self.time_estimator.reset(count=1)
+        pbar = tqdm(range(1, num_episodes + 1), desc=f"训练进度 (N={N})")
+        
+        # 初始化用于记录的变量
+        recent_rewards = []
+        recent_actor_losses = []
+        recent_critic_losses = []
+        
+        for episode in pbar:
+            # A. 收集数据
+            step_reward = self._collect_one_step()
+            recent_rewards.append(step_reward)
+            
+            # B. 训练 (如果 buffer 准备好了)
+            start_steps = self.trainer_params.get('start_train_after_episodes', 1) * self.batch_size
+            
+            if self.buffer.is_ready(self.batch_size) and len(self.buffer) >= start_steps:
+                actor_loss, critic_loss = self._train_one_batch()
+                recent_actor_losses.append(actor_loss) 
+                recent_critic_losses.append(critic_loss)
+            else:
+                # 如果buffer还没准备好，添加占位符
+                recent_actor_losses.append(0.0)
+                recent_critic_losses.append(0.0)
+            
+            # 学习率退火 (可选，但强烈推荐)
+            # 当 episode 接近 num_episodes 时，new_lr 趋近于 0
+            progress = episode / num_episodes
+            new_actor_lr = initial_actor_lr * (1.0 - progress)
+            new_critic_lr = initial_critic_lr * (1.0 - progress)
+            
+            # 更新优化器的学习率
+            for param_group in self.actor_optimizer.param_groups:
+                param_group['lr'] = new_actor_lr
+            for param_group in self.critic_optimizer.param_groups:
+                param_group['lr'] = new_critic_lr
+            
+            # 日志记录
+            if episode % 100 == 0 or episode == num_episodes:
+                # 计算最近100个episode的平均值
+                if len(recent_rewards) > 0:
+                    avg_reward = np.mean(recent_rewards)
+                    avg_actor_loss = 2.0 * np.mean(recent_actor_losses)
+                    avg_critic_loss = np.mean(recent_critic_losses)
+                    
+                    # 更新进度条描述
+                    pbar.set_description(f"训练进度 (N={N}, R={avg_reward:.4f}, A_L={avg_actor_loss:.4f}, C_L={avg_critic_loss:.4f})")
+                    
+                    # 记录到日志
+                    self.logger.info(f"Episode {episode}: 平均奖励={avg_reward:.4f}, "
+                                   f"Actor损失={avg_actor_loss:.4f}, Critic损失={avg_critic_loss:.4f}")
+                    
+                    # 早期停止：检查是否是最佳模型
+                    if avg_reward > self.best_avg_reward:
+                        self.best_avg_reward = avg_reward
+                        # 保存最佳模型
+                        self._save_checkpoint(0, N, suffix="_best")
+                        self.logger.info(f"Episode {episode}: 保存了新的最佳模型，平均奖励={avg_reward:.4f}")
+                
+                # 清空记录列表
+                recent_rewards.clear()
+                recent_actor_losses.clear()
+                recent_critic_losses.clear()
+            
+        # 3. 保存最终检查点
+        checkpoint_path = self._save_checkpoint(0, N)  # stage设为0
+        
+        self.logger.info(" *** 单阶段训练完成！ *** ")
 
 
     def _collect_one_step(self):
@@ -197,11 +219,11 @@ class GeoCSFTrainer:
             action = self.actor(h_graph)
             
         # 3. 添加探索噪声
-        action_noisy = action + torch.randn_like(action) * self.noise_level
-        action_noisy = torch.softmax(action_noisy, dim=-1) # 保证加起来为1
+        # action_noisy = action + torch.randn_like(action) * self.noise_level
+        # action_noisy = torch.softmax(action_noisy, dim=-1) # 保证加起来为1
         
         # 4. 与环境交互
-        next_state, reward, done, _ = self.env.step(action_noisy)
+        next_state, reward, done, _ = self.env.step(action)
         next_h_graph = next_state.h_graph
         
         # 5. 存储经验
@@ -209,7 +231,7 @@ class GeoCSFTrainer:
         done_tensor = torch.tensor(done, dtype=torch.bool)
         
         # (buffer.push 会自动将 GPU 张量移到 CPU 存储)
-        self.buffer.push(h_graph, action_noisy, reward_tensor, next_h_graph, done_tensor)
+        self.buffer.push(h_graph, action, reward_tensor, next_h_graph, done_tensor)
         
         # --- 输出 ---
         return np.mean(reward) # (返回标量奖励以便日志记录)
@@ -221,6 +243,8 @@ class GeoCSFTrainer:
         """
         # --- 输入 ---
         # (self.buffer, self.actor, self.critic, ...)
+        
+        self.train_step_counter += 1
         
         # --- 中间层 ---
         # 从 Replay Buffer 采样 (返回 CPU 张量)
@@ -246,36 +270,41 @@ class GeoCSFTrainer:
         critic_loss.backward()
         self.critic_optimizer.step()
         
+        actor_loss_val = 0.0
+        
         # 训练 Actor
-        for p in self.critic.parameters():
-            p.requires_grad = False
+        if self.train_step_counter % 2 == 0:
+            for p in self.critic.parameters():
+                p.requires_grad = False
+                
+            a_new = self.actor(s)
+            actor_loss = -self.critic(s, a_new).mean()
+            actor_loss_val = actor_loss.item() # 保存
             
-        a_new = self.actor(s)
-        actor_loss = -self.critic(s, a_new).mean()
-        
-        self.actor_optimizer.zero_grad()
-        actor_loss.backward()
-        self.actor_optimizer.step()
-        
-        for p in self.critic.parameters():
-            p.requires_grad = True
+            self.actor_optimizer.zero_grad()
+            actor_loss.backward()
+            self.actor_optimizer.step()
+            
+            for p in self.critic.parameters():
+                p.requires_grad = True
             
         # 软更新
         # soft_update(self.actor_target, self.actor, self.tau)
         # soft_update(self.critic_target, self.critic, self.tau)
         
         # --- 输出 ---
-        # actor_loss是负值，返回其相反数以便日志记录
-        return -actor_loss.item(), critic_loss.item()
+        return actor_loss_val, critic_loss.item()
         
 
-    def _save_checkpoint(self, stage, N):
+    def _save_checkpoint(self, stage, N, suffix=""):
         """
-        (新) 保存模型检查点
+        保存模型检查点
         """
-        # (类似模板中的保存逻辑)
-        self.logger.info(f"--- 阶段 {stage+1} (N={N}) 训练完成! ---")
-        current_checkpoint_path = f"{self.result_folder}/model_stage_N{N}.pth"
+        if suffix == "_best":
+            self.logger.info(f"--- 保存最佳模型 (N={N}) ---")
+        else:
+            self.logger.info(f"--- 训练完成 (N={N}) ---")
+        current_checkpoint_path = f"{self.result_folder}/model_N{N}{suffix}.pth"
         
         torch.save({
             'stage': stage,
@@ -287,5 +316,5 @@ class GeoCSFTrainer:
             'result_log': self.result_log.get_raw_data()
         }, current_checkpoint_path)
         
-        self.logger.info(f"阶段性模型已保存到: {current_checkpoint_path}")
+        self.logger.info(f"模型已保存到: {current_checkpoint_path}")
         return current_checkpoint_path

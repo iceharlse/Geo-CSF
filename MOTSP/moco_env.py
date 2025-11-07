@@ -192,13 +192,13 @@ class MOCOEnv:
             while not done_flag and step_count < max_steps:
                 # selected shape: (B, weca_pomo_size)
                 selected, _ = self.solver_model(state)
-                state, reward, done_flag = self.internal_env.step(selected)
+                state, reward, done_flag = self.internal_env.step(selected) #reward是负的成本
                 step_count += 1
 
         # --- 解码完成，选择每个实例的最佳解 ---
         if reward is not None:
             # costs shape: (B, weca_pomo_size, M)
-            costs = -reward
+            costs = -reward # 转为正的成本
 
             # 使用当前偏好批次 prefs (shape: B, M) 计算标量成本
             # 需要扩展 pref: (B, 1, M)
