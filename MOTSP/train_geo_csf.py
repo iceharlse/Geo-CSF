@@ -86,7 +86,7 @@ trainer_params = {
     'use_cuda': USE_CUDA,
     'cuda_device_num': CUDA_DEVICE_NUM,
     'device': torch.device('cuda:0' if USE_CUDA else 'cpu'),
-    'num_episodes' : 5000,
+    'num_episodes' : 10000,
     
     # Actor-Critic 参数
     'batch_size': 32,

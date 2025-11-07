@@ -166,12 +166,26 @@ class TSPTester:
         # 根据决策方法计算TCH奖励
         if self.tester_params['dec_method'] == "WS":
             # 加权和方法
-            tch_reward = (pref * reward).sum(dim=2)
+            # 处理不同形状的偏好向量
+            if pref.dim() == 1:  # 形状为[2,]的情况
+                tch_reward = (pref * reward).sum(dim=-1)  # 在最后一个维度求和
+            else:  # 形状为[batch_size, 2]的情况
+                # 扩展pref以匹配reward的维度 [batch_size, 2] -> [1, batch_size, 1, 2]
+                pref_expanded = pref.unsqueeze(0).unsqueeze(2)  # [1, batch_size, 1, 2]
+                # 扩展reward以匹配pref的维度 [aug_factor, batch_size, pomo_size, 2] -> [aug_factor, batch_size, pomo_size, 2]
+                # 由于维度已经匹配，我们可以直接进行广播
+                tch_reward = (pref_expanded * reward).sum(dim=-1)  # 在最后一个维度求和
         elif self.tester_params['dec_method'] == "TCH":
             # Tchebycheff方法
             z = torch.ones(reward.shape).cuda() * 0.0
-            tch_reward = pref * (reward - z)
-            tch_reward, _ = tch_reward.max(dim=2)
+            if pref.dim() == 1:  # 形状为[2,]的情况
+                tch_reward = pref * (reward - z)
+                tch_reward, _ = tch_reward.max(dim=-1)  # 在最后一个维度取最大值
+            else:  # 形状为[batch_size, 2]的情况
+                # 扩展pref以匹配reward的维度 [batch_size, 2] -> [1, batch_size, 1, 2]
+                pref_expanded = pref.unsqueeze(0).unsqueeze(2)  # [1, batch_size, 1, 2]
+                tch_reward = pref_expanded * (reward - z)
+                tch_reward, _ = tch_reward.max(dim=-1)  # 在最后一个维度取最大值
         else:
             return NotImplementedError
 
