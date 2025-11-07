@@ -340,6 +340,10 @@ class MOCOEnv:
 
         # 计算 HV 奖励
         hv_rewards = self._compute_hv_rewards(p_sols, p_sols_num)
+        
+        # 获取 NDS 奖励 (NDS 就是 p_sols_num)
+        #    (p_sols_num 是 GPU 張量，我們需要將其轉為 CPU NumPy)
+        nds_rewards = p_sols_num.cpu().numpy() # shape: (B,)
     
         # done 永远是 True (对于每个实例)
         dones = np.ones(B, dtype=bool)

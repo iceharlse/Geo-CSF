@@ -12,20 +12,6 @@ from MOTSP.critic import CriticNetwork
 from MOTSP.replay_buffer import ReplayBuffer
 from utils.utils import * # (用于 AverageMeter, TimeEstimator, LogData)
 
-
-def soft_update(target, source, tau):
-    """
-    软更新目标网络参数
-    
-    Args:
-        target (nn.Module): 目标网络
-        source (nn.Module): 源网络
-        tau (float): 更新率
-    """
-    for target_param, param in zip(target.parameters(), source.parameters()):
-        target_param.data.copy_(target_param.data * (1.0 - tau) + param.data * tau)
-
-
 class GeoCSFTrainer:
     """
     Geo-CSF 训练器
@@ -55,11 +41,14 @@ class GeoCSFTrainer:
         # --- 核心组件---
         # 这些组件是 None，它们将在 _initialize_stage 中被创建
         self.actor = None
-        self.critic = None
+        self.critic_1 = None
+        self.critic_2 = None
         self.actor_target = None
-        self.critic_target = None
+        self.critic_1_target = None
+        self.critic_2_target = None
         self.actor_optimizer = None
-        self.critic_optimizer = None
+        self.critic_1_optimizer = None
+        self.critic_2_optimizer = None
         self.buffer = None
         self.train_step_counter = 0
         # --- 工具 ---
@@ -79,7 +68,8 @@ class GeoCSFTrainer:
 
         # 1. 初始化 Actor, Critic
         self.actor = MocoPolicyNetwork(**self.actor_params).to(self.device)
-        self.critic = CriticNetwork(**self.critic_params).to(self.device)
+        self.critic_1 = CriticNetwork(**self.critic_params).to(self.device)
+        self.critic_2 = CriticNetwork(**self.critic_params).to(self.device)
         
         self.train_step_counter = 0
         
@@ -89,15 +79,14 @@ class GeoCSFTrainer:
             self.logger.info(f"从 {last_checkpoint_path} 热启动...")
             checkpoint = torch.load(last_checkpoint_path, map_location=self.device)
             self.actor.load_state_dict(checkpoint['actor_state_dict'])
-            self.critic.load_state_dict(checkpoint['critic_state_dict'])
-            
-        # 3. 初始化目标网络
-        #self.actor_target = deepcopy(self.actor).to(self.device)
-        #self.critic_target = deepcopy(self.critic).to(self.device)
+            # TD3使用两个critic，需要分别加载
+            self.critic_1.load_state_dict(checkpoint['critic_1_state_dict'])
+            self.critic_2.load_state_dict(checkpoint['critic_2_state_dict'])
         
         # 4. 初始化优化器
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.optimizer_params['lr_actor'])
-        self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=self.optimizer_params['lr_critic'])
+        self.critic_1_optimizer = optim.Adam(self.critic_1.parameters(), lr=self.optimizer_params['lr_critic'])
+        self.critic_2_optimizer = optim.Adam(self.critic_2.parameters(), lr=self.optimizer_params['lr_critic'])
         
         # 5. 重新初始化 Replay Buffer
         self.buffer = ReplayBuffer(capacity=self.trainer_params['buffer_capacity'])
@@ -166,7 +155,9 @@ class GeoCSFTrainer:
             # 更新优化器的学习率
             for param_group in self.actor_optimizer.param_groups:
                 param_group['lr'] = new_actor_lr
-            for param_group in self.critic_optimizer.param_groups:
+            for param_group in self.critic_1_optimizer.param_groups:
+                param_group['lr'] = new_critic_lr
+            for param_group in self.critic_2_optimizer.param_groups:
                 param_group['lr'] = new_critic_lr
             
             # 日志记录
@@ -260,40 +251,52 @@ class GeoCSFTrainer:
         # 训练 Critic
         with torch.no_grad():
         #    a_next = self.actor_target(ns)
-        #    q_next = self.critic_target(ns, a_next)
+        #    q_next_1 = self.critic_1_target(ns, a_next)
+        #    q_next_2 = self.critic_2_target(ns, a_next)
+        #    q_next = torch.min(q_next_1, q_next_2)
         #    y = r + (1 - d.float().unsqueeze(-1)) * self.gamma * q_next
             y = r
-        q_current = self.critic(s, a)
-        critic_loss = F.mse_loss(q_current, y)
+            
+        # 訓練 Critic 1
+        q_current_1 = self.critic_1(s, a)
+        critic_loss_1 = F.mse_loss(q_current_1, y)
+        self.critic_1_optimizer.zero_grad()
+        critic_loss_1.backward()
+        self.critic_1_optimizer.step()
         
-        self.critic_optimizer.zero_grad()
-        critic_loss.backward()
-        self.critic_optimizer.step()
+        # 訓練 Critic 2
+        q_current_2 = self.critic_2(s, a)
+        critic_loss_2 = F.mse_loss(q_current_2, y)
+        self.critic_2_optimizer.zero_grad()
+        critic_loss_2.backward()
+        self.critic_2_optimizer.step()
+        
+        critic_loss_val = (critic_loss_1.item() + critic_loss_2.item()) / 2
         
         actor_loss_val = 0.0
         
         # 训练 Actor
         if self.train_step_counter % 2 == 0:
-            for p in self.critic.parameters():
-                p.requires_grad = False
+            for p in self.critic_1.parameters(): p.requires_grad = False
+            for p in self.critic_2.parameters(): p.requires_grad = False
                 
             a_new = self.actor(s)
-            actor_loss = -self.critic(s, a_new).mean()
+            q_score_1 = self.critic_1(s, a_new)
+            q_score_2 = self.critic_2(s, a_new)
+            q_score_min = torch.min(q_score_1, q_score_2)
+                        
+            actor_loss = -q_score_min.mean()
             actor_loss_val = actor_loss.item() # 保存
             
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
             self.actor_optimizer.step()
             
-            for p in self.critic.parameters():
-                p.requires_grad = True
+            for p in self.critic_1.parameters(): p.requires_grad = True
+            for p in self.critic_2.parameters(): p.requires_grad = True
             
-        # 软更新
-        # soft_update(self.actor_target, self.actor, self.tau)
-        # soft_update(self.critic_target, self.critic, self.tau)
-        
         # --- 输出 ---
-        return actor_loss_val, critic_loss.item()
+        return actor_loss_val, critic_loss_val
         
 
     def _save_checkpoint(self, stage, N, suffix=""):
@@ -310,9 +313,11 @@ class GeoCSFTrainer:
             'stage': stage,
             'N': N,
             'actor_state_dict': self.actor.state_dict(),
-            'critic_state_dict': self.critic.state_dict(),
+            'critic_1_state_dict': self.critic_1.state_dict(),
+            'critic_2_state_dict': self.critic_2.state_dict(),
             'actor_optimizer_state_dict': self.actor_optimizer.state_dict(),
-            'critic_optimizer_state_dict': self.critic_optimizer.state_dict(),
+            'critic_1_optimizer_state_dict': self.critic_1_optimizer.state_dict(),
+            'critic_2_optimizer_state_dict': self.critic_2_optimizer.state_dict(),
             'result_log': self.result_log.get_raw_data()
         }, current_checkpoint_path)
         

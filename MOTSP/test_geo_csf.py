@@ -182,7 +182,7 @@ def main():
     actor = MocoPolicyNetwork(**actor_params)
     
     # 加载模型权重
-    model_path = f"./result/20251107_094705_train_geo_csf/model_N{N}_best.pth"  # 使用最佳模型
+    model_path = f"./result/20251107_143034_train_geo_csf/model_N{N}_best.pth"  # 使用最佳模型
     checkpoint = torch.load(model_path, map_location='cuda:' + str(CUDA_DEVICE_NUM) if USE_CUDA else 'cpu')
     actor.load_state_dict(checkpoint['actor_state_dict'])
     actor.eval()
