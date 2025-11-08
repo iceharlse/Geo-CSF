@@ -165,7 +165,7 @@ class GeoCSFTrainer:
                 # 计算最近100个episode的平均值
                 if len(recent_rewards) > 0:
                     avg_reward = np.mean(recent_rewards)
-                    avg_actor_loss = 2.0 * np.mean(recent_actor_losses)
+                    avg_actor_loss = 3.0 * np.mean(recent_actor_losses)
                     avg_critic_loss = np.mean(recent_critic_losses)
                     
                     # 更新进度条描述
@@ -276,7 +276,7 @@ class GeoCSFTrainer:
         actor_loss_val = 0.0
         
         # 训练 Actor
-        if self.train_step_counter % 2 == 0:
+        if self.train_step_counter % 3 == 0:
             for p in self.critic_1.parameters(): p.requires_grad = False
             for p in self.critic_2.parameters(): p.requires_grad = False
                 

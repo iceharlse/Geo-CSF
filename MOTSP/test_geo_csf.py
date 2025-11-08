@@ -215,7 +215,7 @@ def main():
     h_graph = state.h_graph  # shape: [B, 128]
     print(f"h_graph shape: {h_graph.shape}")
     
-    K_SAMPLES = 5
+    K_SAMPLES = 1
     all_pref_sets_list = []
     print(f"Geo-CSF 正在為 {h_graph.shape[0]} 個問題進行 {K_SAMPLES} 次集成採樣...")
     
@@ -281,18 +281,15 @@ def main():
     # 创建并保存帕累托前沿图
     fig = plt.figure()
 
-    sols_mean = sols.mean(0)
-    plt.axvline(single_task[0],linewidth=3 , alpha = 0.25)
-    plt.axhline(single_task[1],linewidth=3,alpha = 0.25, label = 'Single Objective TSP (Concorde)')
-    plt.plot(sols_mean[:,0],sols_mean[:,1], marker = 'o', c = 'C1',ms = 3,  label='Geo-CSF (Ours)')
+    # 使用第一个实例的结果绘制帕累托前沿图，而不是对所有实例求平均
+    # sols_mean = sols.mean(0)  # 注释掉原来的平均操作
+    sols_first_instance = sols[0]  # 取第一个实例的结果
+    plt.axvline(single_task[0], linewidth=3, alpha=0.25)
+    plt.axhline(single_task[1], linewidth=3, alpha=0.25, label='Single Objective TSP (Concorde)')
+    plt.plot(sols_first_instance[:, 0], sols_first_instance[:, 1], marker='o', c='C1', ms=3, label='Geo-CSF (Ours)')
 
     plt.legend()
-    plt.savefig(F"{tester.result_folder}/{pareto_fig}")
-
-    # 保存平均解
-    np.savetxt(F"{tester.result_folder}/{sols_floder}", sols_mean,
-               delimiter='\t', fmt="%.4f\t%.4f")
-
+    plt.savefig(f"{tester.result_folder}/{pareto_fig}")
 
     # 计算帕累托解和超体积指标
     nd_sort = Pareto_sols(p_size=env_params['problem_size'], pop_size=sols.shape[0], obj_num=sols.shape[2])

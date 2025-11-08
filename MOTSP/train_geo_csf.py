@@ -63,14 +63,14 @@ actor_params = {
         'num_heads': 8,
         'ff_hidden_dim': 512
     },
-    'N': 50,
+    'N': 10,
     'M': 2
 }
 
 # --- Critic 参数---
 critic_params = {
     'condition_dim': 128,
-    'N' : 50,
+    'N' : 10,
     'M': 2,
     'hidden_dim': 128,
 }
