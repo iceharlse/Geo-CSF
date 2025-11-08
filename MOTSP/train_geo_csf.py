@@ -12,13 +12,13 @@ sys.path.insert(0, parent_dir)
 
 # --- 导入---
 from utils.utils import create_logger, copy_all_src
-from Trainer_TD3 import GeoCSFTrainer as Trainer   
+from Trainer import GeoCSFTrainer as Trainer   
 from MOTSP.moco_env import MOCOEnv
 
 # --- 机器/CUDA 设置---
 DEBUG_MODE = False
 USE_CUDA = not DEBUG_MODE
-CUDA_DEVICE_NUM = 1 # 假设您使用 GPU 0
+CUDA_DEVICE_NUM = 0 # 假设您使用 GPU 0
 
 ##########################################################################################
 # 参数配置
@@ -63,14 +63,14 @@ actor_params = {
         'num_heads': 8,
         'ff_hidden_dim': 512
     },
-    'N': 10,
+    'N': 50,
     'M': 2
 }
 
 # --- Critic 参数---
 critic_params = {
     'condition_dim': 128,
-    'N' : 10,
+    'N' : 50,
     'M': 2,
     'hidden_dim': 128,
 }

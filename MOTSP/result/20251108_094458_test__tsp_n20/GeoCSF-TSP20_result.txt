@@ -1,0 +1,12 @@
+GeoCSF-TSP20
+MOTSP_2obj Type1
+Model Path: ./result/20251107_223914_train_geo_csf/model_N101_best.pth
+Hyper Hidden Dim: 256
+Batch Size: 200
+Aug Factor: 1
+Test Time(s): 14.8965
+Run Time(s): 15.9379
+HV Ratio: 0.6273
+NDS: 26.4150
+Ref Point:[20,20] 
+Info: Geo-CSF测试

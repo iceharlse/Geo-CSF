@@ -1,0 +1,127 @@
+[2025-11-07 22:39:15] train_geo_csf.py(179) : DEBUG_MODE: False
+[2025-11-07 22:39:15] train_geo_csf.py(181) : USE_CUDA: True, CUDA_DEVICE_NUM: 1
+[2025-11-07 22:39:15] train_geo_csf.py(183) : env_params{'weca_model_params': {'embedding_dim': 128, 'sqrt_embedding_dim': 11.313708498984761, 'encoder_layer_num': 6, 'qkv_dim': 16, 'head_num': 8, 'logit_clipping': 10, 'ff_hidden_dim': 512, 'eval_type': 'argmax', 'hyper_hidden_dim': 256}, 'weca_env_params': {'problem_size': 20, 'pomo_size': 20}, 'weca_checkpoint_path': './POMO/result/train__tsp_n20/checkpoint_motsp-200.pt', 'ref_point': [20.0, 20.0]}
+[2025-11-07 22:39:15] train_geo_csf.py(183) : actor_params{'gfp_params': {'input_dim': 128, 'hidden_dims': [64, 32], 'output_dim': 16, 'activation': 'relu'}, 'csf_params': {'input_dim': 2, 'hidden_dim': 128, 'condition_dim': 128, 'geometric_dim': 16, 'time_embed_dim': 128, 'num_layers': 2, 'num_heads': 8, 'ff_hidden_dim': 512}, 'N': 101, 'M': 2}
+[2025-11-07 22:39:15] train_geo_csf.py(183) : critic_params{'condition_dim': 128, 'N': 101, 'M': 2, 'hidden_dim': 128}
+[2025-11-07 22:39:15] train_geo_csf.py(183) : optimizer_params{'lr_actor': 1e-05, 'lr_critic': 0.0001}
+[2025-11-07 22:39:15] train_geo_csf.py(183) : trainer_params{'use_cuda': True, 'cuda_device_num': 1, 'device': device(type='cuda', index=0), 'num_episodes': 10000, 'batch_size': 32, 'buffer_capacity': 50000, 'gamma': 0.99, 'tau': 0.005, 'noise_level': 0.1, 'train_steps_per_episode': 10, 'start_train_after_episodes': 100, 'logging': {'model_save_interval': 5, 'img_save_interval': 10, 'log_image_params_1': {'json_foldername': 'log_image_style', 'filename': 'style_tsp_20.json'}, 'log_image_params_2': {'json_foldername': 'log_image_style', 'filename': 'style_loss_1.json'}}, 'model_load': {'enable': False, 'path': './result/saved_geo_csf_model', 'stage_to_load': 0}}
+[2025-11-07 22:39:15] train_geo_csf.py(183) : logger_params{'log_file': {'desc': 'train_geo_csf', 'filename': 'run_log', 'filepath': './result/20251107_223914_train_geo_csf'}}
+[2025-11-07 22:39:15] Trainer.py(111) : --- 开始单阶段训练: N = 10, Episodes = 10000 ---
+[2025-11-07 22:46:55] Trainer.py(175) : Episode 100: 平均奖励=0.6265, Actor损失=0.0000, Critic损失=0.0033
+[2025-11-07 22:46:55] Trainer.py(307) : --- 保存最佳模型 (N=10) ---
+[2025-11-07 22:46:55] Trainer.py(324) : 模型已保存到: ./result/20251107_223914_train_geo_csf/model_N10_best.pth
+[2025-11-07 22:46:55] Trainer.py(183) : Episode 100: 保存了新的最佳模型，平均奖励=0.6265
+[2025-11-07 22:55:27] Trainer.py(175) : Episode 200: 平均奖励=0.6242, Actor损失=-0.5305, Critic损失=0.0368
+[2025-11-07 23:03:34] Trainer.py(175) : Episode 300: 平均奖励=0.6236, Actor损失=-0.6162, Critic损失=0.0007
+[2025-11-07 23:11:55] Trainer.py(175) : Episode 400: 平均奖励=0.6247, Actor损失=-0.6176, Critic损失=0.0006
+[2025-11-07 23:20:09] Trainer.py(175) : Episode 500: 平均奖励=0.6218, Actor损失=-0.6193, Critic损失=0.0006
+[2025-11-07 23:27:53] Trainer.py(175) : Episode 600: 平均奖励=0.6179, Actor损失=-0.6200, Critic损失=0.0005
+[2025-11-07 23:34:43] Trainer.py(175) : Episode 700: 平均奖励=0.6130, Actor损失=-0.6185, Critic损失=0.0005
+[2025-11-07 23:41:28] Trainer.py(175) : Episode 800: 平均奖励=0.6098, Actor损失=-0.6174, Critic损失=0.0005
+[2025-11-07 23:48:08] Trainer.py(175) : Episode 900: 平均奖励=0.6088, Actor损失=-0.6149, Critic损失=0.0005
+[2025-11-07 23:54:43] Trainer.py(175) : Episode 1000: 平均奖励=0.5870, Actor损失=-0.6129, Critic损失=0.0005
+[2025-11-08 00:01:15] Trainer.py(175) : Episode 1100: 平均奖励=0.5950, Actor损失=-0.6084, Critic损失=0.0006
+[2025-11-08 00:07:43] Trainer.py(175) : Episode 1200: 平均奖励=0.5562, Actor损失=-0.6011, Critic损失=0.0007
+[2025-11-08 00:14:09] Trainer.py(175) : Episode 1300: 平均奖励=0.6121, Actor损失=-0.6118, Critic损失=0.0007
+[2025-11-08 00:20:35] Trainer.py(175) : Episode 1400: 平均奖励=0.6176, Actor损失=-0.6162, Critic损失=0.0006
+[2025-11-08 00:27:03] Trainer.py(175) : Episode 1500: 平均奖励=0.6235, Actor损失=-0.6174, Critic损失=0.0006
+[2025-11-08 00:33:31] Trainer.py(175) : Episode 1600: 平均奖励=0.6268, Actor损失=-0.6224, Critic损失=0.0006
+[2025-11-08 00:33:31] Trainer.py(307) : --- 保存最佳模型 (N=10) ---
+[2025-11-08 00:33:31] Trainer.py(324) : 模型已保存到: ./result/20251107_223914_train_geo_csf/model_N10_best.pth
+[2025-11-08 00:33:31] Trainer.py(183) : Episode 1600: 保存了新的最佳模型，平均奖励=0.6268
+[2025-11-08 00:40:04] Trainer.py(175) : Episode 1700: 平均奖励=0.6257, Actor损失=-0.6263, Critic损失=0.0006
+[2025-11-08 00:46:35] Trainer.py(175) : Episode 1800: 平均奖励=0.6241, Actor损失=-0.6271, Critic损失=0.0006
+[2025-11-08 00:53:09] Trainer.py(175) : Episode 1900: 平均奖励=0.6232, Actor损失=-0.6213, Critic损失=0.0006
+[2025-11-08 00:59:42] Trainer.py(175) : Episode 2000: 平均奖励=0.6237, Actor损失=-0.6172, Critic损失=0.0006
+[2025-11-08 01:06:23] Trainer.py(175) : Episode 2100: 平均奖励=0.6257, Actor损失=-0.6194, Critic损失=0.0006
+[2025-11-08 01:12:59] Trainer.py(175) : Episode 2200: 平均奖励=0.6255, Actor损失=-0.6188, Critic损失=0.0006
+[2025-11-08 01:19:31] Trainer.py(175) : Episode 2300: 平均奖励=0.6260, Actor损失=-0.6181, Critic损失=0.0006
+[2025-11-08 01:26:09] Trainer.py(175) : Episode 2400: 平均奖励=0.6257, Actor损失=-0.6197, Critic损失=0.0006
+[2025-11-08 01:32:29] Trainer.py(175) : Episode 2500: 平均奖励=0.6262, Actor损失=-0.6206, Critic损失=0.0006
+[2025-11-08 01:38:34] Trainer.py(175) : Episode 2600: 平均奖励=0.6262, Actor损失=-0.6215, Critic损失=0.0005
+[2025-11-08 01:44:45] Trainer.py(175) : Episode 2700: 平均奖励=0.6260, Actor损失=-0.6214, Critic损失=0.0005
+[2025-11-08 01:50:56] Trainer.py(175) : Episode 2800: 平均奖励=0.6262, Actor损失=-0.6229, Critic损失=0.0005
+[2025-11-08 01:57:08] Trainer.py(175) : Episode 2900: 平均奖励=0.6258, Actor损失=-0.6223, Critic损失=0.0004
+[2025-11-08 02:03:17] Trainer.py(175) : Episode 3000: 平均奖励=0.6260, Actor损失=-0.6229, Critic损失=0.0004
+[2025-11-08 02:09:25] Trainer.py(175) : Episode 3100: 平均奖励=0.6264, Actor损失=-0.6231, Critic损失=0.0004
+[2025-11-08 02:15:36] Trainer.py(175) : Episode 3200: 平均奖励=0.6270, Actor损失=-0.6240, Critic损失=0.0004
+[2025-11-08 02:15:36] Trainer.py(307) : --- 保存最佳模型 (N=10) ---
+[2025-11-08 02:15:37] Trainer.py(324) : 模型已保存到: ./result/20251107_223914_train_geo_csf/model_N10_best.pth
+[2025-11-08 02:15:37] Trainer.py(183) : Episode 3200: 保存了新的最佳模型，平均奖励=0.6270
+[2025-11-08 02:21:48] Trainer.py(175) : Episode 3300: 平均奖励=0.6266, Actor损失=-0.6241, Critic损失=0.0004
+[2025-11-08 02:28:00] Trainer.py(175) : Episode 3400: 平均奖励=0.6264, Actor损失=-0.6245, Critic损失=0.0004
+[2025-11-08 02:34:11] Trainer.py(175) : Episode 3500: 平均奖励=0.6269, Actor损失=-0.6250, Critic损失=0.0004
+[2025-11-08 02:40:22] Trainer.py(175) : Episode 3600: 平均奖励=0.6262, Actor损失=-0.6256, Critic损失=0.0004
+[2025-11-08 02:46:32] Trainer.py(175) : Episode 3700: 平均奖励=0.6260, Actor损失=-0.6255, Critic损失=0.0004
+[2025-11-08 02:52:42] Trainer.py(175) : Episode 3800: 平均奖励=0.6259, Actor损失=-0.6253, Critic损失=0.0004
+[2025-11-08 02:58:54] Trainer.py(175) : Episode 3900: 平均奖励=0.6257, Actor损失=-0.6248, Critic损失=0.0004
+[2025-11-08 03:05:07] Trainer.py(175) : Episode 4000: 平均奖励=0.6262, Actor损失=-0.6247, Critic损失=0.0004
+[2025-11-08 03:11:19] Trainer.py(175) : Episode 4100: 平均奖励=0.6267, Actor损失=-0.6246, Critic损失=0.0004
+[2025-11-08 03:17:29] Trainer.py(175) : Episode 4200: 平均奖励=0.6266, Actor损失=-0.6245, Critic损失=0.0004
+[2025-11-08 03:23:40] Trainer.py(175) : Episode 4300: 平均奖励=0.6266, Actor损失=-0.6252, Critic损失=0.0004
+[2025-11-08 03:29:52] Trainer.py(175) : Episode 4400: 平均奖励=0.6262, Actor损失=-0.6255, Critic损失=0.0004
+[2025-11-08 03:36:02] Trainer.py(175) : Episode 4500: 平均奖励=0.6266, Actor损失=-0.6251, Critic损失=0.0004
+[2025-11-08 03:42:12] Trainer.py(175) : Episode 4600: 平均奖励=0.6269, Actor损失=-0.6254, Critic损失=0.0004
+[2025-11-08 03:48:18] Trainer.py(175) : Episode 4700: 平均奖励=0.6266, Actor损失=-0.6246, Critic损失=0.0004
+[2025-11-08 03:54:22] Trainer.py(175) : Episode 4800: 平均奖励=0.6266, Actor损失=-0.6251, Critic损失=0.0004
+[2025-11-08 04:00:25] Trainer.py(175) : Episode 4900: 平均奖励=0.6266, Actor损失=-0.6252, Critic损失=0.0004
+[2025-11-08 04:06:29] Trainer.py(175) : Episode 5000: 平均奖励=0.6265, Actor损失=-0.6255, Critic损失=0.0004
+[2025-11-08 04:12:33] Trainer.py(175) : Episode 5100: 平均奖励=0.6264, Actor损失=-0.6250, Critic损失=0.0004
+[2025-11-08 04:18:41] Trainer.py(175) : Episode 5200: 平均奖励=0.6263, Actor损失=-0.6254, Critic损失=0.0004
+[2025-11-08 04:24:48] Trainer.py(175) : Episode 5300: 平均奖励=0.6273, Actor损失=-0.6256, Critic损失=0.0004
+[2025-11-08 04:24:48] Trainer.py(307) : --- 保存最佳模型 (N=10) ---
+[2025-11-08 04:24:49] Trainer.py(324) : 模型已保存到: ./result/20251107_223914_train_geo_csf/model_N10_best.pth
+[2025-11-08 04:24:49] Trainer.py(183) : Episode 5300: 保存了新的最佳模型，平均奖励=0.6273
+[2025-11-08 04:30:55] Trainer.py(175) : Episode 5400: 平均奖励=0.6271, Actor损失=-0.6262, Critic损失=0.0004
+[2025-11-08 04:37:03] Trainer.py(175) : Episode 5500: 平均奖励=0.6269, Actor损失=-0.6256, Critic损失=0.0004
+[2025-11-08 04:43:13] Trainer.py(175) : Episode 5600: 平均奖励=0.6260, Actor损失=-0.6257, Critic损失=0.0004
+[2025-11-08 04:49:22] Trainer.py(175) : Episode 5700: 平均奖励=0.6263, Actor损失=-0.6258, Critic损失=0.0004
+[2025-11-08 04:55:32] Trainer.py(175) : Episode 5800: 平均奖励=0.6268, Actor损失=-0.6260, Critic损失=0.0004
+[2025-11-08 05:01:44] Trainer.py(175) : Episode 5900: 平均奖励=0.6264, Actor损失=-0.6266, Critic损失=0.0004
+[2025-11-08 05:07:53] Trainer.py(175) : Episode 6000: 平均奖励=0.6270, Actor损失=-0.6266, Critic损失=0.0004
+[2025-11-08 05:14:03] Trainer.py(175) : Episode 6100: 平均奖励=0.6263, Actor损失=-0.6255, Critic损失=0.0004
+[2025-11-08 05:20:12] Trainer.py(175) : Episode 6200: 平均奖励=0.6262, Actor损失=-0.6257, Critic损失=0.0004
+[2025-11-08 05:26:18] Trainer.py(175) : Episode 6300: 平均奖励=0.6265, Actor损失=-0.6261, Critic损失=0.0004
+[2025-11-08 05:32:27] Trainer.py(175) : Episode 6400: 平均奖励=0.6259, Actor损失=-0.6254, Critic损失=0.0004
+[2025-11-08 05:38:36] Trainer.py(175) : Episode 6500: 平均奖励=0.6265, Actor损失=-0.6253, Critic损失=0.0004
+[2025-11-08 05:44:46] Trainer.py(175) : Episode 6600: 平均奖励=0.6266, Actor损失=-0.6256, Critic损失=0.0004
+[2025-11-08 05:50:56] Trainer.py(175) : Episode 6700: 平均奖励=0.6265, Actor损失=-0.6262, Critic损失=0.0004
+[2025-11-08 05:57:03] Trainer.py(175) : Episode 6800: 平均奖励=0.6265, Actor损失=-0.6258, Critic损失=0.0004
+[2025-11-08 06:03:16] Trainer.py(175) : Episode 6900: 平均奖励=0.6273, Actor损失=-0.6257, Critic损失=0.0004
+[2025-11-08 06:03:16] Trainer.py(307) : --- 保存最佳模型 (N=10) ---
+[2025-11-08 06:03:16] Trainer.py(324) : 模型已保存到: ./result/20251107_223914_train_geo_csf/model_N10_best.pth
+[2025-11-08 06:03:16] Trainer.py(183) : Episode 6900: 保存了新的最佳模型，平均奖励=0.6273
+[2025-11-08 06:09:31] Trainer.py(175) : Episode 7000: 平均奖励=0.6267, Actor损失=-0.6257, Critic损失=0.0004
+[2025-11-08 06:16:01] Trainer.py(175) : Episode 7100: 平均奖励=0.6265, Actor损失=-0.6260, Critic损失=0.0004
+[2025-11-08 06:22:19] Trainer.py(175) : Episode 7200: 平均奖励=0.6268, Actor损失=-0.6256, Critic损失=0.0004
+[2025-11-08 06:28:41] Trainer.py(175) : Episode 7300: 平均奖励=0.6266, Actor损失=-0.6254, Critic损失=0.0003
+[2025-11-08 06:34:54] Trainer.py(175) : Episode 7400: 平均奖励=0.6263, Actor损失=-0.6253, Critic损失=0.0003
+[2025-11-08 06:41:10] Trainer.py(175) : Episode 7500: 平均奖励=0.6263, Actor损失=-0.6261, Critic损失=0.0004
+[2025-11-08 06:47:28] Trainer.py(175) : Episode 7600: 平均奖励=0.6263, Actor损失=-0.6257, Critic损失=0.0004
+[2025-11-08 06:53:49] Trainer.py(175) : Episode 7700: 平均奖励=0.6255, Actor损失=-0.6257, Critic损失=0.0004
+[2025-11-08 07:00:12] Trainer.py(175) : Episode 7800: 平均奖励=0.6259, Actor损失=-0.6262, Critic损失=0.0004
+[2025-11-08 07:06:35] Trainer.py(175) : Episode 7900: 平均奖励=0.6264, Actor损失=-0.6252, Critic损失=0.0004
+[2025-11-08 07:12:55] Trainer.py(175) : Episode 8000: 平均奖励=0.6268, Actor损失=-0.6258, Critic损失=0.0004
+[2025-11-08 07:19:14] Trainer.py(175) : Episode 8100: 平均奖励=0.6270, Actor损失=-0.6255, Critic损失=0.0004
+[2025-11-08 07:25:32] Trainer.py(175) : Episode 8200: 平均奖励=0.6258, Actor损失=-0.6258, Critic损失=0.0004
+[2025-11-08 07:31:55] Trainer.py(175) : Episode 8300: 平均奖励=0.6267, Actor损失=-0.6255, Critic损失=0.0003
+[2025-11-08 07:38:22] Trainer.py(175) : Episode 8400: 平均奖励=0.6266, Actor损失=-0.6263, Critic损失=0.0004
+[2025-11-08 07:44:44] Trainer.py(175) : Episode 8500: 平均奖励=0.6266, Actor损失=-0.6253, Critic损失=0.0004
+[2025-11-08 07:51:04] Trainer.py(175) : Episode 8600: 平均奖励=0.6260, Actor损失=-0.6257, Critic损失=0.0004
+[2025-11-08 07:57:28] Trainer.py(175) : Episode 8700: 平均奖励=0.6269, Actor损失=-0.6261, Critic损失=0.0004
+[2025-11-08 08:03:51] Trainer.py(175) : Episode 8800: 平均奖励=0.6266, Actor损失=-0.6259, Critic损失=0.0003
+[2025-11-08 08:10:07] Trainer.py(175) : Episode 8900: 平均奖励=0.6264, Actor损失=-0.6254, Critic损失=0.0004
+[2025-11-08 08:16:16] Trainer.py(175) : Episode 9000: 平均奖励=0.6264, Actor损失=-0.6261, Critic损失=0.0003
+[2025-11-08 08:22:21] Trainer.py(175) : Episode 9100: 平均奖励=0.6264, Actor损失=-0.6256, Critic损失=0.0004
+[2025-11-08 08:28:30] Trainer.py(175) : Episode 9200: 平均奖励=0.6258, Actor损失=-0.6258, Critic损失=0.0004
+[2025-11-08 08:34:36] Trainer.py(175) : Episode 9300: 平均奖励=0.6269, Actor损失=-0.6253, Critic损失=0.0004
+[2025-11-08 08:40:43] Trainer.py(175) : Episode 9400: 平均奖励=0.6262, Actor损失=-0.6257, Critic损失=0.0004
+[2025-11-08 08:46:59] Trainer.py(175) : Episode 9500: 平均奖励=0.6259, Actor损失=-0.6251, Critic损失=0.0004
+[2025-11-08 08:53:24] Trainer.py(175) : Episode 9600: 平均奖励=0.6270, Actor损失=-0.6262, Critic损失=0.0004
+[2025-11-08 08:59:46] Trainer.py(175) : Episode 9700: 平均奖励=0.6263, Actor损失=-0.6259, Critic损失=0.0004
+[2025-11-08 09:06:08] Trainer.py(175) : Episode 9800: 平均奖励=0.6269, Actor损失=-0.6258, Critic损失=0.0004
+[2025-11-08 09:12:28] Trainer.py(175) : Episode 9900: 平均奖励=0.6262, Actor损失=-0.6256, Critic损失=0.0003
+[2025-11-08 09:18:51] Trainer.py(175) : Episode 10000: 平均奖励=0.6267, Actor损失=-0.6251, Critic损失=0.0004
+[2025-11-08 09:18:51] Trainer.py(309) : --- 训练完成 (N=10) ---
+[2025-11-08 09:18:51] Trainer.py(324) : 模型已保存到: ./result/20251107_223914_train_geo_csf/model_N10.pth
+[2025-11-08 09:18:51] Trainer.py(193) :  *** 单阶段训练完成！ *** 

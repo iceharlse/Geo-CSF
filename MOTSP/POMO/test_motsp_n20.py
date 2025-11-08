@@ -86,7 +86,7 @@ def _print_config():
     [logger.info(g_key + "{}".format(globals()[g_key])) for g_key in globals().keys() if g_key.endswith('params')]
 
 ##########################################################################################
-def main(n_sols = 10):
+def main(n_sols = 101):
     """
     主函数，用于测试MOTSP模型并生成结果。
     

@@ -1,0 +1,13 @@
+PMOCO-TSP20
+MOTSP_2obj Type1
+Model Path: ./result/train__tsp_n20
+Model Epoch: 200
+Hyper Hidden Dim: 256
+Batch Size: 200
+Aug Factor: 1
+Test Time(s): 3.6619
+Run Time(s): 4.1347
+HV Ratio: 0.6270
+NDS: 23.4750
+Ref Point:[20,20] 
+Info: MOTSP20 Author's code (Retrain WS Test WS)

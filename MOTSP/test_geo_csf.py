@@ -10,11 +10,28 @@ import os
 import sys
 import torch
 import numpy as np
+import random
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, "..")  # for problem_def
 sys.path.insert(0, "../..")  # for utils
 sys.path.insert(0, "./POMO")  # 添加POMO目录到路径中
+
+##########################################################################################
+# Set random seeds for reproducibility
+def set_seed(seed=42):
+    """设置随机种子以确保实验结果可重复"""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # 如果使用多个GPU
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    os.environ['PYTHONHASHSEED'] = str(seed)
+
+# 设置固定的随机种子
+set_seed(42)  # 您可以根据需要更改这个值
 
 ##########################################################################################
 # import
@@ -76,7 +93,7 @@ actor_params = {
         'num_heads': 8,
         'ff_hidden_dim': 512
     },
-    'N': 10,
+    'N': 101,
     'M': 2
 }
 
@@ -106,7 +123,7 @@ logger_params = {
 }
 
 # 测试参数
-N = 10  # 偏好集大小
+N = 101  # 偏好集大小
 BATCH_SIZE = 200  # 测试批次大小
 
 ##########################################################################################
@@ -125,6 +142,9 @@ def main():
     """
     主函数，用于测试Geo-CSF模型并生成结果。
     """
+    # 设置随机种子以确保结果可重复
+    # set_seed(109)
+    
     # 根据是否启用数据增强设置不同的文件名后缀
     if tester_params['aug_factor'] == 1:
         sols_floder = f"GeoCSF_mean_sols_n{env_params['problem_size']}.txt"
@@ -182,7 +202,7 @@ def main():
     actor = MocoPolicyNetwork(**actor_params)
     
     # 加载模型权重
-    model_path = f"./result/20251107_143034_train_geo_csf/model_N{N}_best.pth"  # 使用最佳模型
+    model_path = f"./result/20251107_223914_train_geo_csf/model_N{N}_best.pth"  # 使用最佳模型
     checkpoint = torch.load(model_path, map_location='cuda:' + str(CUDA_DEVICE_NUM) if USE_CUDA else 'cpu')
     actor.load_state_dict(checkpoint['actor_state_dict'])
     actor.eval()
@@ -195,17 +215,31 @@ def main():
     h_graph = state.h_graph  # shape: [B, 128]
     print(f"h_graph shape: {h_graph.shape}")
     
+    K_SAMPLES = 5
+    all_pref_sets_list = []
+    print(f"Geo-CSF 正在為 {h_graph.shape[0]} 個問題進行 {K_SAMPLES} 次集成採樣...")
+    
     # 生成偏好集
     with torch.no_grad():
-        pref_sets_batch = actor(h_graph)  # shape: [B, N, 2]
-    print(f"生成的偏好集 shape: {pref_sets_batch.shape}")
+        for k in range(K_SAMPLES):
+            # 每次調用 actor(h_graph) 都會因為 torch.randn 而得到不同的結果
+            pref_sets_batch_k = actor(h_graph) # shape [B, 101, 2]
+            all_pref_sets_list.append(pref_sets_batch_k)
+    
+    # 將 K 次採樣合併
+    # [B, 101, 2] * K  --->  [B, K*101, 2]
+    pref_sets_batch = torch.cat(all_pref_sets_list, dim=1)
+    
+    # [新] 更新 n_sols 為 K*N
+    n_sols = pref_sets_batch.shape[1] # (例如 5 * 101 = 505)
+    print(f"已成功生成 {n_sols} 個偏好向量。")
     
     # 初始化存储解的数组
-    sols = np.zeros([batch_size, N, 2])
+    sols = np.zeros([batch_size, n_sols, 2])
     total_test_time = 0
     
     # 重新循环求解：将偏好分N次喂给求解器
-    for i in range(N):
+    for i in range(n_sols):
         # 取出第i个偏好向量，shape: [B, 2]
         pref = pref_sets_batch[:, i, :]
         
