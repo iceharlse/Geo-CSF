@@ -25,7 +25,8 @@ class State:
     状态数据类，用于存储环境状态信息
     h_graph shape: (batch, embedding_dim)
     """
-    h_graph: torch.Tensor
+    h_graph: torch.Tensor = None
+    node_embeddings: torch.Tensor = None
 
 class MOCOEnv:
     """
@@ -115,8 +116,9 @@ class MOCOEnv:
         print(f"使用固定的 HV 参考点: {self.ref_point}")
 
         # --- 存储当前状态 ---
-        self.problems = None  # 简化变量名
-        self.h_graphs = None  # 简化变量名
+        self.problems = None  
+        self.h_graphs = None  
+        self.node_embeddings = None
 
     def reset(self, problem=None):
         """
@@ -157,9 +159,10 @@ class MOCOEnv:
             # encoded_nodes shape: (B, problem_size + 1, embedding_dim)
             h_graphs = torch.mean(encoded_nodes[:, :-1, :], dim=1)
             # h_graphs shape: (B, embedding_dim)
-            self.h_graphs = h_graphs # 简化变量名
+            self.h_graphs = h_graphs
+            self.node_embeddings = encoded_nodes[:, :-1, :] # (B, problem_size, embedding_dim)
 
-        return State(h_graph=self.h_graphs) # 返回包含 h_graphs 的 State 物件
+        return State(h_graph=self.h_graphs, node_embeddings=self.node_embeddings)
 
     def _solve_with_preference(self, prefs):
         """
@@ -348,8 +351,8 @@ class MOCOEnv:
         # done 永远是 True (对于每个实例)
         dones = np.ones(B, dtype=bool)
     
-        # next_states 就是当前的 h_graphs
-        next_states = State(h_graph=self.h_graphs)  # shape: (B, embedding_dim)
+        # next_states 就是当前的 h_graphs 和 node_embeddings
+        next_states = State(h_graph=self.h_graphs, node_embeddings=self.node_embeddings)  # shape: (B, embedding_dim)
     
         # infos 列表，每个元素是一个字典
         infos = [{'objectives': solutions_cpu[b].numpy()} for b in range(B)]

@@ -63,12 +63,13 @@ class MocoPolicyNetwork(nn.Module):
         self.gfp = GeometricFeaturePredictor(**gfp_params)
         self.vector_field = SetTransformerVectorField(**csf_params)
         
-    def forward(self, h_graph):
+    def forward(self, h_graph, node_embeddings):
         """
         前向传播函数，生成动作
         
         Args:
             h_graph (torch.Tensor): 状态张量，形状 [B, condition_dim]
+            node_embeddings (torch.Tensor): 节点嵌入张量，形状 [B, N, embedding_dim]
             
         Returns:
             action (torch.Tensor): 生成的偏好集，形状 [B, N, M]
@@ -77,7 +78,7 @@ class MocoPolicyNetwork(nn.Module):
         
         # Actor部分：生成动作
         # [GFP] 获取几何特征
-        g_s = self.gfp(h_graph)
+        g_s = self.gfp(node_embeddings)
         
         # [ODE] 采样初始噪声 Lambda_0
         # 从标准正态分布中采样（随机性来源）
@@ -100,4 +101,4 @@ class MocoPolicyNetwork(nn.Module):
         # 对动作进行归一化，确保和为 1
         action = torch.softmax(raw_action, dim=-1)
         
-        return action
+        return action, g_s

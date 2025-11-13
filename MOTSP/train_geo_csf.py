@@ -49,9 +49,11 @@ env_params = {
 actor_params = {
     'gfp_params': {
         'input_dim': 128,
-        'hidden_dims': [64, 32],
+        'hidden_dim': 128,
         'output_dim': 16,
-        'activation': 'relu'
+        'num_layers': 2,
+        'num_heads': 8,
+        'ff_hidden_dim': 512
     },
     'csf_params': {
         'input_dim': 2, 

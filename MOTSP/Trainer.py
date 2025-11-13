@@ -66,29 +66,20 @@ class GeoCSFTrainer:
         last_checkpoint_path (str or None): 上一阶段的模型路径
         """
 
-        # 1. 初始化 Actor, Critic
+        #  初始化 Actor, Critic
         self.actor = MocoPolicyNetwork(**self.actor_params).to(self.device)
         self.critic_1 = CriticNetwork(**self.critic_params).to(self.device)
         self.critic_2 = CriticNetwork(**self.critic_params).to(self.device)
         
         self.train_step_counter = 0
         
-        # 2.热启动
-        if last_checkpoint_path is not None:
-            # (加载 actor.load_state_dict 和 critic.load_state_dict)
-            self.logger.info(f"从 {last_checkpoint_path} 热启动...")
-            checkpoint = torch.load(last_checkpoint_path, map_location=self.device)
-            self.actor.load_state_dict(checkpoint['actor_state_dict'])
-            # TD3使用两个critic，需要分别加载
-            self.critic_1.load_state_dict(checkpoint['critic_1_state_dict'])
-            self.critic_2.load_state_dict(checkpoint['critic_2_state_dict'])
         
-        # 4. 初始化优化器
+        #  初始化优化器
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.optimizer_params['lr_actor'])
         self.critic_1_optimizer = optim.Adam(self.critic_1.parameters(), lr=self.optimizer_params['lr_critic'])
         self.critic_2_optimizer = optim.Adam(self.critic_2.parameters(), lr=self.optimizer_params['lr_critic'])
         
-        # 5. 重新初始化 Replay Buffer
+        # 重新初始化 Replay Buffer
         self.buffer = ReplayBuffer(capacity=self.trainer_params['buffer_capacity'])
 
     def run(self):
@@ -204,25 +195,21 @@ class GeoCSFTrainer:
         # 1. 重置环境
         state = self.env.reset()
         h_graph = state.h_graph
+        node_embeddings = state.node_embeddings
         
         # 2. Actor 生成动作
         with torch.no_grad():
-            action = self.actor(h_graph)
-            
-        # 3. 添加探索噪声
-        # action_noisy = action + torch.randn_like(action) * self.noise_level
-        # action_noisy = torch.softmax(action_noisy, dim=-1) # 保证加起来为1
+            action, g_s = self.actor(h_graph, node_embeddings)
         
         # 4. 与环境交互
         next_state, reward, done, _ = self.env.step(action)
-        next_h_graph = next_state.h_graph
         
         # 5. 存储经验
         reward_tensor = torch.tensor(reward, dtype=torch.float32).unsqueeze(-1)
         done_tensor = torch.tensor(done, dtype=torch.bool)
         
         # (buffer.push 会自动将 GPU 张量移到 CPU 存储)
-        self.buffer.push(h_graph, action, reward_tensor, next_h_graph, done_tensor)
+        self.buffer.push(h_graph, g_s, node_embeddings, action, reward_tensor, done_tensor)
         
         # --- 输出 ---
         return np.mean(reward) # (返回标量奖励以便日志记录)
@@ -239,13 +226,14 @@ class GeoCSFTrainer:
         
         # --- 中间层 ---
         # 从 Replay Buffer 采样 (返回 CPU 张量)
-        s, a, r, ns, d = self.buffer.sample(self.batch_size)
+        s, g_s, node_embeddings, a, r, d = self.buffer.sample(self.batch_size)
         
         # 将数据移到 GPU
         s = s.to(self.device)
+        g_s = g_s.to(self.device)
+        node_embeddings = node_embeddings.to(self.device)
         a = a.to(self.device)
         r = r.to(self.device)
-        ns = ns.to(self.device)
         d = d.to(self.device)
         
         # 训练 Critic
@@ -258,14 +246,14 @@ class GeoCSFTrainer:
             y = r
             
         # 訓練 Critic 1
-        q_current_1 = self.critic_1(s, a)
+        q_current_1 = self.critic_1(s, g_s, a)
         critic_loss_1 = F.mse_loss(q_current_1, y)
         self.critic_1_optimizer.zero_grad()
         critic_loss_1.backward()
         self.critic_1_optimizer.step()
         
         # 訓練 Critic 2
-        q_current_2 = self.critic_2(s, a)
+        q_current_2 = self.critic_2(s, g_s, a)
         critic_loss_2 = F.mse_loss(q_current_2, y)
         self.critic_2_optimizer.zero_grad()
         critic_loss_2.backward()
@@ -280,9 +268,9 @@ class GeoCSFTrainer:
             for p in self.critic_1.parameters(): p.requires_grad = False
             for p in self.critic_2.parameters(): p.requires_grad = False
                 
-            a_new = self.actor(s)
-            q_score_1 = self.critic_1(s, a_new)
-            q_score_2 = self.critic_2(s, a_new)
+            a_new, _ = self.actor(s, node_embeddings)  # 只取action部分，忽略g_s
+            q_score_1 = self.critic_1(s, g_s, a_new)
+            q_score_2 = self.critic_2(s, g_s, a_new)
             q_score_min = torch.min(q_score_1, q_score_2)
                         
             actor_loss = -q_score_min.mean()
