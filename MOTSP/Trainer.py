@@ -56,9 +56,6 @@ class GeoCSFTrainer:
         
         # --- 获取固定参数 ---
         self.batch_size = self.trainer_params['batch_size']
-        self.tau = self.trainer_params['tau']
-        self.gamma = self.trainer_params['gamma']
-        self.noise_level = self.trainer_params['noise_level']
 
 
     def _initialize_stage(self, last_checkpoint_path=None):
@@ -81,6 +78,14 @@ class GeoCSFTrainer:
         
         # 重新初始化 Replay Buffer
         self.buffer = ReplayBuffer(capacity=self.trainer_params['buffer_capacity'])
+        
+        self.avg_reward = AverageMeter()
+        self.avg_actor_loss = AverageMeter()
+        self.avg_critic_loss_total = AverageMeter() # (这个是总的_加权_损失)
+        
+        # --- (!! 核心 !!) ---
+        # (这是用于监控尺度的_未加权_损失)
+        self.avg_unweighted_hv_loss = AverageMeter() 
 
     def run(self):
         """
@@ -115,27 +120,30 @@ class GeoCSFTrainer:
         self.time_estimator.reset(count=1)
         pbar = tqdm(range(1, num_episodes + 1), desc=f"训练进度 (N={N})")
         
-        # 初始化用于记录的变量
-        recent_rewards = []
-        recent_actor_losses = []
-        recent_critic_losses = []
         
         for episode in pbar:
             # A. 收集数据
             step_reward = self._collect_one_step()
-            recent_rewards.append(step_reward)
+            self.avg_reward.update(step_reward)
             
             # B. 训练 (如果 buffer 准备好了)
             start_steps = self.trainer_params.get('start_train_after_episodes', 1) * self.batch_size
             
             if self.buffer.is_ready(self.batch_size) and len(self.buffer) >= start_steps:
-                actor_loss, critic_loss = self._train_one_batch()
-                recent_actor_losses.append(actor_loss) 
-                recent_critic_losses.append(critic_loss)
+                
+                # --- (修改) 捕获所有返回的损失值 ---
+                actor_loss, critic_loss, unweighted_hv = self._train_one_batch()
+                
+                # --- (新) 更新 Meters ---
+                self.avg_actor_loss.update(actor_loss)
+                self.avg_critic_loss_total.update(critic_loss)
+                self.avg_unweighted_hv_loss.update(unweighted_hv)
+                
             else:
-                # 如果buffer还没准备好，添加占位符
-                recent_actor_losses.append(0.0)
-                recent_critic_losses.append(0.0)
+                # (如果buffer没准备好，可以 update 0.0)
+                self.avg_actor_loss.update(0.0)
+                self.avg_critic_loss_total.update(0.0)
+                self.avg_unweighted_hv_loss.update(0.0)
             
             # 学习率退火 (可选，但强烈推荐)
             # 当 episode 接近 num_episodes 时，new_lr 趋近于 0
@@ -153,30 +161,42 @@ class GeoCSFTrainer:
             
             # 日志记录
             if episode % 100 == 0 or episode == num_episodes:
-                # 计算最近100个episode的平均值
-                if len(recent_rewards) > 0:
-                    avg_reward = np.mean(recent_rewards)
-                    avg_actor_loss = 3.0 * np.mean(recent_actor_losses)
-                    avg_critic_loss = np.mean(recent_critic_losses)
+                
+                # --- (修改) 从 Meters 中获取平均值 ---
+                if self.avg_reward.count > 0: # (检查是否有数据)
+                    avg_reward = self.avg_reward.avg
+                    avg_actor_loss = 3.0 * self.avg_actor_loss.avg
+                    avg_critic_loss = self.avg_critic_loss_total.avg
+                    
+                    # --- (!! 核心 !!) ---
+                    avg_L_hv_unweighted = self.avg_unweighted_hv_loss.avg
+                    # --- (!! 核心结束 !!) ---
                     
                     # 更新进度条描述
                     pbar.set_description(f"训练进度 (N={N}, R={avg_reward:.4f}, A_L={avg_actor_loss:.4f}, C_L={avg_critic_loss:.4f})")
                     
-                    # 记录到日志
-                    self.logger.info(f"Episode {episode}: 平均奖励={avg_reward:.4f}, "
-                                   f"Actor损失={avg_actor_loss:.4f}, Critic损失={avg_critic_loss:.4f}")
+                    # --- (!! 核心 !!) ---
+                    # 记录到日志 (这里是你监控尺度的地方)
+                    self.logger.info(f"Episode {episode}: 平均奖励={avg_reward:.4f}")
+                    self.logger.info(f"  损失 (Actor): {avg_actor_loss:.4f}")
+                    self.logger.info(f"  损失 (Critic, 总加权): {avg_critic_loss:.4f}")
+                    self.logger.info(f"  --- 尺度监控 ---")
+                    self.logger.info(f"  未加权 L_hv: {avg_L_hv_unweighted:.6f}") # (使用 .6f 提高精度)
+                    self.logger.info(f"  -------------------")
+                    # --- (!! 核心结束 !!) ---
                     
-                    # 早期停止：检查是否是最佳模型
+                    # 检查是否需要保存最佳模型
                     if avg_reward > self.best_avg_reward:
                         self.best_avg_reward = avg_reward
-                        # 保存最佳模型
                         self._save_checkpoint(0, N, suffix="_best")
-                        self.logger.info(f"Episode {episode}: 保存了新的最佳模型，平均奖励={avg_reward:.4f}")
+                        self.logger.info(f" *** 保存新的最佳模型! 平均奖励: {avg_reward:.4f} *** ")
                 
-                # 清空记录列表
-                recent_rewards.clear()
-                recent_actor_losses.clear()
-                recent_critic_losses.clear()
+                # --- (修改) 重置 Meters ---
+                self.avg_reward.reset()
+                self.avg_actor_loss.reset()
+                self.avg_critic_loss_total.reset()
+                self.avg_unweighted_hv_loss.reset()
+
             
         # 3. 保存最终检查点
         checkpoint_path = self._save_checkpoint(0, N)  # stage设为0
@@ -226,40 +246,42 @@ class GeoCSFTrainer:
         
         # --- 中间层 ---
         # 从 Replay Buffer 采样 (返回 CPU 张量)
-        s, g_s, node_embeddings, a, r, d = self.buffer.sample(self.batch_size)
+        s, g_s, node_embeddings, a, r_hv, d = self.buffer.sample(self.batch_size)
         
         # 将数据移到 GPU
         s = s.to(self.device)
         g_s = g_s.to(self.device)
         node_embeddings = node_embeddings.to(self.device)
         a = a.to(self.device)
-        r = r.to(self.device)
+        r_hv = r_hv.to(self.device)
         d = d.to(self.device)
+        
         
         # 训练 Critic
         with torch.no_grad():
-        #    a_next = self.actor_target(ns)
-        #    q_next_1 = self.critic_1_target(ns, a_next)
-        #    q_next_2 = self.critic_2_target(ns, a_next)
-        #    q_next = torch.min(q_next_1, q_next_2)
-        #    y = r + (1 - d.float().unsqueeze(-1)) * self.gamma * q_next
-            y = r
+            y_hv = r_hv
             
+        max_grad_norm = self.trainer_params.get('max_grad_norm_critic', 1.0)
         # 訓練 Critic 1
-        q_current_1 = self.critic_1(s, g_s, a)
-        critic_loss_1 = F.mse_loss(q_current_1, y)
+        q_current_1 = self.critic_1(node_embeddings, a, g_s)
+        critic_loss_1_hv = F.mse_loss(q_current_1, y_hv)
         self.critic_1_optimizer.zero_grad()
-        critic_loss_1.backward()
+        critic_loss_1_hv.backward()
+        torch.nn.utils.clip_grad_norm_(self.critic_1.parameters(), max_grad_norm)
         self.critic_1_optimizer.step()
         
         # 訓練 Critic 2
-        q_current_2 = self.critic_2(s, g_s, a)
-        critic_loss_2 = F.mse_loss(q_current_2, y)
+        q_current_2 = self.critic_2(node_embeddings, a, g_s)
+        critic_loss_2_hv = F.mse_loss(q_current_2, y_hv)
         self.critic_2_optimizer.zero_grad()
-        critic_loss_2.backward()
+        critic_loss_2_hv.backward()
+        # 添加梯度裁剪防止梯度爆炸
+        torch.nn.utils.clip_grad_norm_(self.critic_2.parameters(), max_grad_norm)
         self.critic_2_optimizer.step()
         
-        critic_loss_val = (critic_loss_1.item() + critic_loss_2.item()) / 2
+        critic_loss_val = (critic_loss_1_hv.item() + critic_loss_2_hv.item()) / 2
+        
+        unweighted_hv_loss_val = (critic_loss_1_hv.item() + critic_loss_2_hv.item()) / 2
         
         actor_loss_val = 0.0
         
@@ -268,23 +290,25 @@ class GeoCSFTrainer:
             for p in self.critic_1.parameters(): p.requires_grad = False
             for p in self.critic_2.parameters(): p.requires_grad = False
                 
-            a_new, _ = self.actor(s, node_embeddings)  # 只取action部分，忽略g_s
-            q_score_1 = self.critic_1(s, g_s, a_new)
-            q_score_2 = self.critic_2(s, g_s, a_new)
-            q_score_min = torch.min(q_score_1, q_score_2)
+            a_new, g_s_new = self.actor(s, node_embeddings)  # 只取action部分，忽略g_s
+            q_score_1 = self.critic_1(node_embeddings, a_new, g_s_new)
+            q_score_2 = self.critic_2(node_embeddings, a_new, g_s_new)
+            q_hv_min = torch.min(q_score_1, q_score_2)
                         
-            actor_loss = -q_score_min.mean()
+            actor_loss = -q_hv_min.mean()
             actor_loss_val = actor_loss.item() # 保存
             
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
+            # 添加梯度裁剪防止梯度爆炸
+            torch.nn.utils.clip_grad_norm_(self.actor.parameters(), 0.5)  # 添加梯度裁剪
             self.actor_optimizer.step()
             
             for p in self.critic_1.parameters(): p.requires_grad = True
             for p in self.critic_2.parameters(): p.requires_grad = True
             
         # --- 输出 ---
-        return actor_loss_val, critic_loss_val
+        return actor_loss_val, critic_loss_val, unweighted_hv_loss_val
         
 
     def _save_checkpoint(self, stage, N, suffix=""):

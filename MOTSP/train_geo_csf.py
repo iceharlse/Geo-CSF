@@ -18,7 +18,7 @@ from MOTSP.moco_env import MOCOEnv
 # --- 机器/CUDA 设置---
 DEBUG_MODE = False
 USE_CUDA = not DEBUG_MODE
-CUDA_DEVICE_NUM = 0 # 假设您使用 GPU 0
+CUDA_DEVICE_NUM = 0 # 假设您使用 GPU 2
 
 ##########################################################################################
 # 参数配置
@@ -50,7 +50,7 @@ actor_params = {
     'gfp_params': {
         'input_dim': 128,
         'hidden_dim': 128,
-        'output_dim': 16,
+        'output_dim': 128,
         'num_layers': 2,
         'num_heads': 8,
         'ff_hidden_dim': 512
@@ -59,7 +59,7 @@ actor_params = {
         'input_dim': 2, 
         'hidden_dim': 128,
         'condition_dim': 128, 
-        'geometric_dim': 16,
+        'geometric_dim': 128,
         'time_embed_dim': 128,
         'num_layers': 2,
         'num_heads': 8,
@@ -71,10 +71,11 @@ actor_params = {
 
 # --- Critic 参数---
 critic_params = {
-    'condition_dim': 128,
+    'node_embedding_dim': 128,
     'N' : 10,
     'M': 2,
     'hidden_dim': 128,
+    'geometric_dim': 128,
 }
 
 # --- 优化器参数 ---
@@ -87,17 +88,15 @@ optimizer_params = {
 trainer_params = {
     'use_cuda': USE_CUDA,
     'cuda_device_num': CUDA_DEVICE_NUM,
-    'device': torch.device('cuda:0' if USE_CUDA else 'cpu'),
+    'device': torch.device(f'cuda:{CUDA_DEVICE_NUM}' if USE_CUDA else 'cpu'),
     'num_episodes' : 10000,
     
     # Actor-Critic 参数
-    'batch_size': 32,
-    'buffer_capacity': 50000,
-    'gamma': 0.99,
-    'tau': 0.005,
-    'noise_level': 0.1,
-    'train_steps_per_episode': 10, # 每个 episode 训练几次
+    'batch_size': 256,
+    'buffer_capacity': 100000,
     'start_train_after_episodes': 100, # 收集多少数据后才开始训练
+    
+    'max_grad_norm_critic': 1.0,
     
     # 日志和保存
     'logging': {

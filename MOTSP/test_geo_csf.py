@@ -31,7 +31,7 @@ def set_seed(seed=42):
     os.environ['PYTHONHASHSEED'] = str(seed)
 
 # 设置固定的随机种子
-set_seed(42)  # 您可以根据需要更改这个值
+# set_seed(42)  # 您可以根据需要更改这个值
 
 ##########################################################################################
 # import
@@ -79,21 +79,23 @@ env_params = {
 actor_params = {
     'gfp_params': {
         'input_dim': 128,
-        'hidden_dims': [64, 32],
-        'output_dim': 16,
-        'activation': 'relu'
+        'hidden_dim': 128,
+        'output_dim': 128,
+        'num_layers': 2,
+        'num_heads': 8,
+        'ff_hidden_dim': 512
     },
     'csf_params': {
         'input_dim': 2, # M
         'hidden_dim': 128,
         'condition_dim': 128, 
-        'geometric_dim': 16,
+        'geometric_dim': 128,
         'time_embed_dim': 128,
         'num_layers': 2,
         'num_heads': 8,
         'ff_hidden_dim': 512
     },
-    'N': 101,
+    'N': 10,
     'M': 2
 }
 
@@ -123,7 +125,7 @@ logger_params = {
 }
 
 # 测试参数
-N = 101  # 偏好集大小
+N = 10  # 偏好集大小
 BATCH_SIZE = 200  # 测试批次大小
 
 ##########################################################################################
@@ -202,7 +204,7 @@ def main():
     actor = MocoPolicyNetwork(**actor_params)
     
     # 加载模型权重
-    model_path = f"./result/20251107_223914_train_geo_csf/model_N{N}_best.pth"  # 使用最佳模型
+    model_path = f"./result/20251115_140058_train_geo_csf/model_N{N}_best.pth"  # 使用最佳模型
     checkpoint = torch.load(model_path, map_location='cuda:' + str(CUDA_DEVICE_NUM) if USE_CUDA else 'cpu')
     actor.load_state_dict(checkpoint['actor_state_dict'])
     actor.eval()
@@ -210,10 +212,12 @@ def main():
     
     print(f"成功加载Geo-CSF Actor模型: {model_path}")
     
-    # 获取 h_graph
+    # 获取 h_graph 和 node_embeddings
     state = env.reset(problem=shared_problem[:BATCH_SIZE])  # 使用测试问题重置环境
     h_graph = state.h_graph  # shape: [B, 128]
+    node_embeddings = state.node_embeddings  # shape: [B, N, 128]
     print(f"h_graph shape: {h_graph.shape}")
+    print(f"node_embeddings shape: {node_embeddings.shape}")
     
     K_SAMPLES = 1
     all_pref_sets_list = []
@@ -222,8 +226,8 @@ def main():
     # 生成偏好集
     with torch.no_grad():
         for k in range(K_SAMPLES):
-            # 每次調用 actor(h_graph) 都會因為 torch.randn 而得到不同的結果
-            pref_sets_batch_k = actor(h_graph) # shape [B, 101, 2]
+            # 每次調用 actor(h_graph, node_embeddings) 都會因為 torch.randn 而得到不同的結果
+            pref_sets_batch_k, _ = actor(h_graph, node_embeddings) # shape [B, 101, 2]
             all_pref_sets_list.append(pref_sets_batch_k)
     
     # 將 K 次採樣合併
